@@ -53,7 +53,8 @@ python src/prepare_data.py                     # 질의/회신 파싱, train/tes
 
 ```
 ├── notebooks/
-│   └── train_and_eval_colab.ipynb   # 학습·RAG·평가 통합 노트북 (Colab)
+│   ├── train_and_eval_colab.ipynb   # 학습·RAG·평가 통합 노트북 (Colab, 1회 실행)
+│   └── demo_colab.ipynb             # 데모 전용: 저장된 어댑터 로드 + Gradio 채팅 (~10분)
 ├── src/
 │   ├── scrape.py                    # KIFRS.com 질의회신 수집
 │   └── prepare_data.py              # 파싱, train/test 분리
