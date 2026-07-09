@@ -1,4 +1,4 @@
-# KIFRS-QA-LLM: 회계기준 질의회신 특화 LLM (LoRA + RAG)
+# Accounting-Standards-QA-LLM: 회계기준 질의회신 특화 LLM (LoRA + RAG)
 
 한국회계기준원과 금융감독원의 **회계기준 질의회신 사례**를 활용해, 오픈소스 LLM에 회계 도메인 지식을 적용하는 과정을 실험한 프로젝트입니다.
 
