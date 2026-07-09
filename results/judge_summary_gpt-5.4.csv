@@ -1,0 +1,5 @@
+﻿"config","model","correct","total","accuracy","previous_correct","delta_correct","changed_verdicts"
+"base","gpt-5.4","2","30","0.0667","7","-5","5"
+"rag","gpt-5.4","3","30","0.1","7","-4","4"
+"lora","gpt-5.4","6","30","0.2","8","-2","4"
+"lora_rag","gpt-5.4","8","30","0.2667","7","1","5"

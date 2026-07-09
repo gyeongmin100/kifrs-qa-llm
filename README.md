@@ -41,11 +41,11 @@ python src/prepare_data.py                     # 질의/회신 파싱, train/tes
 
 ### 3. 결론(O/X) 정밀 재평가 (로컬, 선택)
 
-임베딩 유사도만으로는 "결론이 실제로 맞았는가"를 판단하기 어려워, GPT-4o를 judge로 사용해 재채점합니다.
+임베딩 유사도만으로는 "결론이 실제로 맞았는가"를 판단하기 어려워, OpenAI `gpt-5.4`를 judge로 사용해 재채점합니다.
 
 ```bash
 export OPENAI_API_KEY=sk-...
-python src/llm_judge.py   # results/eval_answers.json → results/judge_scores.json
+python src/llm_judge.py --model gpt-5.4 --out results/judge_scores_gpt-5.4.json
 ```
 
 ## 실험 결과
@@ -74,27 +74,27 @@ python src/llm_judge.py   # results/eval_answers.json → results/judge_scores.j
 
 ### 결론(O/X) 기반 정밀 재평가: 다른 그림이 나왔다
 
-임베딩 유사도의 한계를 보완하기 위해 GPT-4o를 judge로 사용해 "정답과 모델 답변의 최종 결론이 일치하는가"만 엄격히 판정했다(`src/llm_judge.py`, 근거는 `results/judge_scores.json`). 문체·서술 방식은 무시하고 결론(허용/불허, 자산/부채 분류 등)만 본다.
+임베딩 유사도의 한계를 보완하기 위해 OpenAI `gpt-5.4`를 judge로 사용해 "정답과 모델 답변의 최종 결론이 일치하는가"만 엄격히 판정했다(`src/llm_judge.py`, 근거는 `results/judge_scores_gpt-5.4.json`). 문체·서술 방식은 무시하고 결론(허용/불허, 자산/부채 분류 등)만 본다.
 
 | 구성 | 결론 정답률 |
 |---|---|
-| base | 23.3% (7/30) |
-| rag | 23.3% (7/30) |
-| lora | 26.7% (8/30) |
-| lora+rag | 23.3% (7/30) |
+| base | 6.7% (2/30) |
+| rag | 10.0% (3/30) |
+| lora | 20.0% (6/30) |
+| **lora+rag** | **26.7% (8/30)** |
 
-**이번엔 4구성이 사실상 구분되지 않았다.** 임베딩 유사도에서 보였던 "RAG가 base보다 낫다"는 신호가 엄격한 결론 일치 기준에서는 사라졌다.
+**gpt-5.4 judge 기준에서는 lora+rag가 가장 높았지만, 절대 정답률은 여전히 낮다.** 임베딩 유사도에서 보였던 "RAG가 base보다 낫다"는 신호는 결론 일치 기준에서는 약했고, LoRA+RAG 조합만 상대적으로 나은 결과를 보였다.
 
 문항 단위로 RAG/LoRA 추가가 정답을 뒤집은 방향을 추적하면:
 
 | 비교 | 오답→정답 | 정답→오답 |
 |---|---|---|
-| base → rag | 4건 | 4건 |
-| lora → lora_rag | 5건 | 6건 |
+| base → rag | 2건 | 1건 |
+| lora → lora_rag | 6건 | 4건 |
 
-개선과 악화가 거의 같은 수로 상쇄된다 — **순효과가 통계적으로 유의미하지 않다.** 또한 30문항 중 14건(47%)은 4구성 전부 오답, 전부 정답인 문항은 1건뿐이었다. 즉 base가 못 푸는 문제는 RAG를 붙이든 파인튜닝을 하든 대부분 여전히 못 풀었다.
+RAG와 LoRA+RAG가 일부 문항을 정답으로 뒤집었지만, 표본이 30문항으로 작고 전반적인 정답률이 낮다. 또한 30문항 중 17건(57%)은 4구성 전부 오답, 전부 정답인 문항은 1건뿐이었다. 즉 base가 못 푸는 문제는 RAG를 붙이든 파인튜닝을 하든 대부분 여전히 못 풀었다.
 
-**해석**: 두 평가 방식이 서로 다른 결론을 낸 것 자체가 핵심 발견이다. 임베딩 유사도는 "그럴듯한 답변"에 점수를 주고, 결론 O/X는 "실제로 맞았는가"를 본다. 후자 기준으로는 이 프로젝트의 데이터 규모(2,114건)·모델 크기(7B)·검색 범위(top-3)에서 RAG·LoRA의 개선 효과가 명확히 입증되지 않았다. 갑설/을설이 대립하는 복합 회계판단 문항은 7B급 모델이 검색·경량 파인튜닝만으로는 근본적으로 풀기 어려운 난이도일 가능성이 있다.
+**해석**: 두 평가 방식이 서로 다른 결론을 낸 것 자체가 핵심 발견이다. 임베딩 유사도는 "그럴듯한 답변"에 점수를 주고, 결론 O/X는 "실제로 맞았는가"를 본다. 후자 기준으로는 LoRA+RAG가 상대적으로 가장 낫지만, 이 프로젝트의 데이터 규모(2,114건)·모델 크기(7B)·검색 범위(top-3)에서 실무적으로 충분한 정답률은 확보하지 못했다. 갑설/을설이 대립하는 복합 회계판단 문항은 7B급 모델이 검색·경량 파인튜닝만으로는 근본적으로 풀기 어려운 난이도일 가능성이 있다.
 
 ### 향후 개선
 1. `repetition_penalty=1.15` 적용 후 재평가 (LoRA 반복 붕괴 해소)
@@ -127,7 +127,9 @@ python src/llm_judge.py   # results/eval_answers.json → results/judge_scores.j
 │   ├── eval_summary.csv             # 4구성 유사도 요약
 │   ├── eval_similarity.csv          # 문항별 상세 유사도
 │   ├── eval_answers.json            # 30문항 × 4구성 전체 답변 원문
-│   └── judge_scores.json            # LLM-judge 결론 O/X 판정 + 근거
+│   ├── judge_scores.json            # GPT-4o LLM-judge 결론 O/X 판정 + 근거
+│   ├── judge_scores_gpt-5.4.json     # gpt-5.4 LLM-judge 재평가 결과
+│   └── judge_summary_gpt-5.4.csv     # gpt-5.4 재평가 요약
 └── requirements.txt
 ```
 
