@@ -71,7 +71,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--in", dest="in_path", default="results/eval_answers.json")
     parser.add_argument("--out", dest="out_path", default="results/judge_scores.json")
-    parser.add_argument("--model", default="gpt-4o-mini")
+    parser.add_argument("--model", default="gpt-4o")
     args = parser.parse_args()
 
     records = json.loads(Path(args.in_path).read_text(encoding="utf-8"))
