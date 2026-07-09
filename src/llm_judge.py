@@ -56,15 +56,23 @@ JUDGE_PROMPT = """당신은 회계기준 질의회신의 정답과 모델 답변
 
 
 def judge_one(client: OpenAI, model: str, question: str, reference: str, answer: str) -> dict:
-    resp = client.chat.completions.create(
-        model=model,
-        messages=[{"role": "user", "content": JUDGE_PROMPT.format(
-            question=question, reference=reference, answer=answer[:2000]
-        )}],
-        response_format={"type": "json_schema", "json_schema": JUDGE_SCHEMA},
-        temperature=0,
-    )
-    return json.loads(resp.choices[0].message.content)
+    last_err = None
+    for attempt in range(3):
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": JUDGE_PROMPT.format(
+                question=question, reference=reference, answer=answer[:2000]
+            )}],
+            response_format={"type": "json_schema", "json_schema": JUDGE_SCHEMA},
+            temperature=0,
+        )
+        content = resp.choices[0].message.content
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            last_err = e
+            time.sleep(1)
+    return {"match": None, "reason": f"judge_error: {last_err}"}
 
 
 def main():
@@ -76,6 +84,8 @@ def main():
 
     records = json.loads(Path(args.in_path).read_text(encoding="utf-8"))
     client = OpenAI()
+    out_path = Path(args.out_path)
+    out_path.parent.mkdir(parents=True, exist_ok=True)
 
     results = []
     for i, rec in enumerate(records):
@@ -85,16 +95,19 @@ def main():
             row[cfg] = verdict
             time.sleep(0.2)
         results.append(row)
+        # 중간 저장: 도중에 실패해도 진행분은 보존
+        out_path.write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
         print(f"[{i + 1}/{len(records)}] {rec['docNumber']}: "
-              + " ".join(f"{c}={'O' if row[c]['match'] else 'X'}" for c in CONFIGS))
+              + " ".join(f"{c}={'O' if row[c]['match'] else ('?' if row[c]['match'] is None else 'X')}"
+                         for c in CONFIGS))
 
-    Path(args.out_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(args.out_path).write_text(json.dumps(results, ensure_ascii=False, indent=2), encoding="utf-8")
-
-    print("\n=== 결론 정답률 ===")
+    print("\n=== 결론 정답률 (judge_error 제외) ===")
     for cfg in CONFIGS:
-        acc = sum(r[cfg]["match"] for r in results) / len(results)
-        print(f"{cfg:10s}: {acc:.1%} ({sum(r[cfg]['match'] for r in results)}/{len(results)})")
+        valid = [r[cfg]["match"] for r in results if r[cfg]["match"] is not None]
+        errors = len(results) - len(valid)
+        acc = sum(valid) / len(valid) if valid else 0
+        err_note = f", 채점실패 {errors}건" if errors else ""
+        print(f"{cfg:10s}: {acc:.1%} ({sum(valid)}/{len(valid)}{err_note})")
 
 
 if __name__ == "__main__":
